@@ -6,9 +6,7 @@ import dayjs from 'dayjs';
 
 @Injectable({ providedIn: 'root' })
 export class WorkshopService {
-    constructor(
-        private http: HttpClient,
-    ) {}
+    constructor(private http: HttpClient) {}
     findAppointments(from: dayjs.Dayjs, to: dayjs.Dayjs, address?: string, car?: string): Observable<HttpResponse<Appointment[]>> {
         const params = this.createRequestOption({
             from: from.toJSON(),

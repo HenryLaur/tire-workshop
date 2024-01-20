@@ -1,8 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import dayjs from 'dayjs';
 import { WorkshopService } from '../service/workshop.service';
-import {catchError, finalize, of} from 'rxjs';
-import {HttpErrorResponse} from "@angular/common/http";
+import { catchError, finalize, of } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
 
 export interface Appointment {
     name: string;
@@ -28,7 +28,7 @@ export class AppointmentListComponent implements OnInit {
     isLoading = false;
     contactInfo = '';
     selectedWorkshop?: Appointment;
-    error? : { status: string, message: string };
+    error?: { status: string; message: string };
 
     constructor(private workshopService: WorkshopService) {}
 
@@ -43,13 +43,14 @@ export class AppointmentListComponent implements OnInit {
             /* Added timeout so we can see cool loading effect, otherwise its too fast :D */
             .pipe(
                 finalize(() => setTimeout(() => (this.isLoading = false), 1000)),
-                catchError((httpError) => {
-                this.error = { status: httpError.status, message: httpError.error?.message };
-                return of()
-            }))
+                catchError(httpError => {
+                    this.error = { status: httpError.status, message: httpError.error?.message };
+                    return of();
+                }),
+            )
             .subscribe(response => {
                 this.appointments = response.body!;
-                delete this.error
+                delete this.error;
             });
     }
 
@@ -58,11 +59,13 @@ export class AppointmentListComponent implements OnInit {
         this.workshopService
             .bookAppointment(this.selectedWorkshop!.uuid, this.selectedWorkshop!.name, this.contactInfo)
             /* Added timeout so we can see cool loading effect, otherwise its too fast :D */
-            .pipe(finalize(() => setTimeout(() => (this.isLoading = false), 1000)),
-                catchError((httpError) => {
-                    this.error = {status: httpError.error.status, message: httpError.error.message};
-                    return of()
-                }))
+            .pipe(
+                finalize(() => setTimeout(() => (this.isLoading = false), 1000)),
+                catchError(httpError => {
+                    this.error = { status: httpError.error.status, message: httpError.error.message };
+                    return of();
+                }),
+            )
             .subscribe(() => {
                 this.search();
             });

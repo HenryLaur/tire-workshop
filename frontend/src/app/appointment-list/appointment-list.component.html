@@ -1,8 +1,8 @@
 <div class="container card shadow p-4">
     <h2 class="text-center mb-4">Tire Change Workshops</h2>
     <div *ngIf="error?.message" class="card bg-danger-subtle p-3 mb-3">
-        <h3>Error: {{error?.status}}</h3>
-        <div>Message: {{error?.message}}</div>
+        <h3>Error: {{ error?.status }}</h3>
+        <div>Message: {{ error?.message }}</div>
     </div>
     <form #form="ngForm" class="row mb-3">
         <div class="col">
