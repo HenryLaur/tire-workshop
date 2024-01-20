@@ -3,6 +3,8 @@ Start with command: mvnw clean compile exec:java
 
 Backend uses 2 tire workshop servers: https://github.com/Surmus/tire-change-workshop.
 
+Backend also contains service file test
+
 Clients are defined in application.yml
 
 ``` yml
