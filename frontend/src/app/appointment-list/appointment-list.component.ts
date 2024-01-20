@@ -44,7 +44,7 @@ export class AppointmentListComponent implements OnInit {
             .pipe(
                 finalize(() => setTimeout(() => (this.isLoading = false), 1000)),
                 catchError((httpError) => {
-                this.error = { status: httpError.error.status, message: httpError.error.message };
+                this.error = { status: httpError.status, message: httpError.error?.message };
                 return of()
             }))
             .subscribe(response => {
