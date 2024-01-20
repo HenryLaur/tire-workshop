@@ -1,0 +1,12 @@
+{
+    "name": "tire-change-workshop",
+    "version": "0.0.0",
+    "private": true,
+    "scripts": {
+        "prettier:write": "prettier --write \"{,src/**/}*.{md,json,yml,html,java}\""
+    },
+    "devDependencies": {
+        "prettier": "2.5.1",
+        "prettier-plugin-java": "1.6.0"
+    }
+}
