@@ -1,0 +1,120 @@
+<div class="container card shadow p-4">
+    <h2 class="text-center mb-4">Tire Change Workshops</h2>
+    <div *ngIf="error" class="card bg-danger-subtle p-3 mb-3">
+        <h3>Error: {{error.status}}</h3>
+        <div>Message: {{error.message}}</div>
+    </div>
+    <form #form="ngForm" class="row mb-3">
+        <div class="col">
+            <mat-form-field appearance="fill" class="w-100">
+                <mat-label>Filter by Cars</mat-label>
+                <input matInput type="text" name="cars" [(ngModel)]="car" />
+            </mat-form-field>
+        </div>
+
+        <div class="col">
+            <mat-form-field appearance="fill" class="w-100">
+                <mat-label>Filter by Address</mat-label>
+                <input matInput type="text" name="address" [(ngModel)]="address" />
+            </mat-form-field>
+        </div>
+
+        <div class="col">
+            <mat-form-field class="w-100">
+                <mat-label>Enter a date range</mat-label>
+                <mat-date-range-input [rangePicker]="picker">
+                    <input required matStartDate [(ngModel)]="from" name="from" placeholder="Start date" />
+                    <input required matEndDate [(ngModel)]="to" name="to" placeholder="End date" />
+                </mat-date-range-input>
+                <mat-hint>DD/MM/YYYY – DD/MM/YYYY</mat-hint>
+                <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
+                <mat-date-range-picker #picker></mat-date-range-picker>
+            </mat-form-field>
+        </div>
+        <div class="col">
+            <button (click)="search()" [disabled]="form.invalid" class="input-height w-100" mat-raised-button color="primary">
+                Search
+            </button>
+        </div>
+    </form>
+
+    <div class="table-responsive" *ngIf="appointments?.length">
+        <table class="table table-light table-bordered table-striped table-hover table-flush table-hover mb-0">
+            <thead>
+                <tr>
+                    <th class="text-center col-2">Date</th>
+                    <th class="text-center col-2">Available Time</th>
+                    <th class="text-center col-2">Workshop Name</th>
+                    <th class="text-center col-2">Address</th>
+                    <th class="text-center col-2">Cars</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr *ngFor="let appointment of appointments; first as first" (click)="appointment.clicked = true">
+                    <td class="text-center align-middle col-2">{{ appointment.time | date }}</td>
+                    <td class="text-center align-middle col-2">{{ appointment.time | date: 'HH:mm' }}</td>
+                    <td class="align-middle col-2 text-capitalize">{{ appointment.name }}</td>
+                    <td class="align-middle col-2">{{ appointment.address }}</td>
+                    <td class="align-middle col-2">
+                        <ul class="list-unstyled">
+                            <li *ngFor="let car of appointment.cars">{{ car }}</li>
+                        </ul>
+                    </td>
+                    <td class="align-middle text-center">
+                        <button
+                            (click)="isModalOpen = true; selectedWorkshop = appointment"
+                            mat-mini-fab
+                            color="primary"
+                            title="Book appointment">
+                            <mat-icon>perm_contact_calendar</mat-icon>
+                        </button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div *ngIf="!appointments?.length">
+        <h2 class="text-center text-muted fst-italic mt-3">No Appointments found</h2>
+    </div>
+</div>
+<div *ngIf="isLoading" class="overlay d-flex align-items-center justify-content-center">
+    <div class="spinner-border" role="status">
+        <span class="sr-only"></span>
+    </div>
+</div>
+
+<div *ngIf="isModalOpen && selectedWorkshop" class="overlay d-flex align-items-center justify-content-center">
+    <form #form="ngForm" class="card p-4 shadow modal-width">
+        <div class="row mb-3 align-items-center">
+            <h2 class="col m-0">Book appointment</h2>
+            <button type="button" class="btn-close mx-2" (click)="isModalOpen = false"></button>
+        </div>
+        <div class="row">
+            <div class="col">
+                <h4>
+                    Workshop: <span class="text-capitalize">{{ selectedWorkshop.name }}</span>
+                </h4>
+                <h4>Date: {{ selectedWorkshop.time | date }}</h4>
+                <h4>Time: {{ selectedWorkshop.time | date: 'HH:mm' }}</h4>
+                <h4>Address: {{ selectedWorkshop.address }}</h4>
+                <h4>Cars: {{ selectedWorkshop.cars }}</h4>
+            </div>
+        </div>
+        <mat-form-field appearance="fill" class="w-100">
+            <mat-label>Contact info:</mat-label>
+            <input matInput required type="text" name="contact-info" [(ngModel)]="contactInfo" />
+        </mat-form-field>
+        <div class="text-center">
+            <button
+                type="button"
+                class="input-height w-100"
+                mat-raised-button
+                color="primary"
+                [disabled]="form.invalid"
+                (click)="isModalOpen = false; bookAppointment(); contactInfo = ''; selectedWorkshop = undefined">
+                Book Appointment
+            </button>
+        </div>
+    </form>
+</div>
