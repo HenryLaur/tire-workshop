@@ -97,6 +97,11 @@ public class WorkshopService {
                 );
             }
             throw e;
+        } catch (ResourceAccessException e) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Could not connect to " + name
+            );
         }
     }
 
