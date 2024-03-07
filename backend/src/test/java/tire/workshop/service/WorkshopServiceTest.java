@@ -2,6 +2,7 @@ package tire.workshop.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
@@ -9,6 +10,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -17,13 +19,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.server.ResponseStatusException;
-import tire.workshop.client.JsonClient;
-import tire.workshop.client.XmlClient;
 import tire.workshop.config.WorkshopProperties;
 import tire.workshop.config.WorkshopTypeEnum;
 import tire.workshop.dto.WorkshopAppointment;
-import tire.workshop.dto.json.AppointmentJson;
-import tire.workshop.dto.xml.AppointmentXml;
 
 @ExtendWith(MockitoExtension.class)
 class WorkshopServiceTest {
@@ -41,10 +39,13 @@ class WorkshopServiceTest {
     private WorkshopService workshopService;
 
     @Mock
-    JsonClient jsonClient;
+    XmlClientStrategy xmlClientStrategy;
 
     @Mock
-    XmlClient xmlClient;
+    JsonClientStrategy jsonClientStrategy;
+
+    @Mock
+    Map<WorkshopTypeEnum, WorkShopClientStrategy> strategies;
 
     @Mock
     private WorkshopProperties workshopProperties;
@@ -78,9 +79,10 @@ class WorkshopServiceTest {
                         .build()
                 )
             );
-        when(jsonClient.findAppointments(any(), any())).thenReturn(new ArrayList<>());
+        when(jsonClientStrategy.findAppointments(any(), any(), any())).thenReturn(new ArrayList<>());
+        when(strategies.get(WorkshopTypeEnum.JSON)).thenReturn(jsonClientStrategy);
         workshopService.findAppointments(Instant.now(), Instant.now(), null, CAR_TYPE_TRUCK);
-        verify(jsonClient, times(1)).findAppointments(any(), any());
+        verify(jsonClientStrategy, times(1)).findAppointments(any(), any(), any());
     }
 
     @Test
@@ -96,9 +98,10 @@ class WorkshopServiceTest {
                         .build()
                 )
             );
-        when(jsonClient.findAppointments(any(), any())).thenReturn(new ArrayList<>());
+        when(strategies.get(WorkshopTypeEnum.JSON)).thenReturn(jsonClientStrategy);
+        when(jsonClientStrategy.findAppointments(any(), any(), any())).thenReturn(new ArrayList<>());
         workshopService.findAppointments(Instant.now(), Instant.now(), ADDRESS_MANCHESTER, null);
-        verify(jsonClient, times(1)).findAppointments(any(), any());
+        verify(jsonClientStrategy, times(1)).findAppointments(any(), any(), any());
     }
 
     @Test
@@ -115,11 +118,12 @@ class WorkshopServiceTest {
                         .build()
                 )
             );
-        when(jsonClient.findAppointments(any(), any()))
+        when(strategies.get(WorkshopTypeEnum.JSON)).thenReturn(jsonClientStrategy);
+        when(jsonClientStrategy.findAppointments(any(), any(), any()))
             .thenReturn(
                 List.of(
-                    AppointmentJson.builder().id(ID_1).available(true).time(APPOINTMENT_TIME).build(),
-                    AppointmentJson.builder().id(ID_2).available(false).time(APPOINTMENT_TIME).build()
+                    WorkshopAppointment.builder().uuid(ID_1).time(APPOINTMENT_TIME).build(),
+                    WorkshopAppointment.builder().uuid(ID_2).time(APPOINTMENT_TIME).build()
                 )
             );
         List<WorkshopAppointment> appointments = workshopService.findAppointments(
@@ -128,14 +132,8 @@ class WorkshopServiceTest {
             null,
             null
         );
-        verify(jsonClient, times(1)).findAppointments(any(), any());
-        assertEquals(appointments.size(), 1);
-        WorkshopAppointment workshopAppointment = appointments.get(0);
-        assertEquals(workshopAppointment.getTime(), APPOINTMENT_TIME);
-        assertEquals(workshopAppointment.getUuid(), ID_1);
-        assertEquals(workshopAppointment.getName(), WORKSHOP_NAME);
-        assertEquals(workshopAppointment.getCars(), List.of(CAR_TYPE_CAR));
-        assertEquals(workshopAppointment.getAddress(), ADDRESS_LONDON);
+        verify(jsonClientStrategy, times(1)).findAppointments(any(), any(), any());
+        assertEquals(appointments.size(), 2);
     }
 
     @Test
@@ -152,22 +150,17 @@ class WorkshopServiceTest {
                         .build()
                 )
             );
-        when(xmlClient.findAppointments(any(), any(), any()))
-            .thenReturn(List.of(AppointmentXml.builder().uuid(ID_1).time(APPOINTMENT_TIME).build()));
+        when(strategies.get(WorkshopTypeEnum.XML)).thenReturn(xmlClientStrategy);
+        when(xmlClientStrategy.findAppointments(any(), any(), any()))
+            .thenReturn(List.of(WorkshopAppointment.builder().uuid(ID_1).time(APPOINTMENT_TIME).build()));
         List<WorkshopAppointment> appointments = workshopService.findAppointments(
             Instant.now(),
             Instant.now().plus(1, ChronoUnit.DAYS),
             null,
             null
         );
-        verify(xmlClient, times(1)).findAppointments(any(), any(), any());
+        verify(xmlClientStrategy, times(1)).findAppointments(any(), any(), any());
         assertEquals(appointments.size(), 1);
-        WorkshopAppointment workshopAppointment = appointments.get(0);
-        assertEquals(workshopAppointment.getTime(), APPOINTMENT_TIME);
-        assertEquals(workshopAppointment.getUuid(), ID_1);
-        assertEquals(workshopAppointment.getName(), WORKSHOP_NAME);
-        assertEquals(workshopAppointment.getCars(), List.of(CAR_TYPE_CAR));
-        assertEquals(workshopAppointment.getAddress(), ADDRESS_LONDON);
     }
 
     @Test
@@ -188,7 +181,7 @@ class WorkshopServiceTest {
                 new ResponseStatusException(BAD_REQUEST, "Error finding workshop by name: " + WORKSHOP_NAME)
                     .getMessage()
             );
-        verify(xmlClient, never()).findAppointments(any(), any(), any());
+        verify(xmlClientStrategy, never()).findAppointments(any(), any(), any());
     }
 
     @Test
@@ -203,7 +196,7 @@ class WorkshopServiceTest {
                 new ResponseStatusException(BAD_REQUEST, "Error finding workshop by name: " + WORKSHOP_NAME)
                     .getMessage()
             );
-        verify(xmlClient, never()).findAppointments(any(), any(), any());
+        verify(xmlClientStrategy, never()).findAppointments(any(), any(), any());
     }
 
     @Test
@@ -220,7 +213,8 @@ class WorkshopServiceTest {
                         .build()
                 )
             );
-        when(xmlClient.bookAppointment(any(), any(), any()))
+        when(strategies.get(WorkshopTypeEnum.XML)).thenReturn(xmlClientStrategy);
+        when(xmlClientStrategy.bookAppointment(any(), any(), any()))
             .thenThrow(new HttpClientErrorException(HttpStatus.UNPROCESSABLE_ENTITY));
         ResponseStatusException exception = assertThrows(
             ResponseStatusException.class,
@@ -231,6 +225,6 @@ class WorkshopServiceTest {
                 new ResponseStatusException(BAD_REQUEST, "Appointment already booked or not found with id: " + ID_1)
                     .getMessage()
             );
-        verify(xmlClient, never()).findAppointments(any(), any(), any());
+        verify(xmlClientStrategy, never()).findAppointments(any(), any(), any());
     }
 }

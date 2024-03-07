@@ -2,12 +2,16 @@ package tire.workshop.dto;
 
 import java.time.Instant;
 import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import tire.workshop.config.WorkshopProperties;
 import tire.workshop.dto.json.AppointmentJson;
 import tire.workshop.dto.xml.AppointmentXml;
 
 @Data
+@Builder
+@AllArgsConstructor
 public class WorkshopAppointment {
 
     private String uuid;
