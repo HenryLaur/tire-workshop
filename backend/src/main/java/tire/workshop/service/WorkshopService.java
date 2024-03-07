@@ -4,15 +4,13 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.server.ResponseStatusException;
-import tire.workshop.client.JsonClient;
-import tire.workshop.client.XmlClient;
 import tire.workshop.config.WorkshopProperties;
 import tire.workshop.config.WorkshopTypeEnum;
 import tire.workshop.dto.WorkshopAppointment;
@@ -24,41 +22,15 @@ import tire.workshop.dto.xml.TireChangeBookingRequest;
 public class WorkshopService {
 
     private final WorkshopProperties workshopProperties;
-    private final XmlClient xmlClient;
-    private final JsonClient jsonClient;
+    private final Map<WorkshopTypeEnum, WorkShopClientStrategy> strategies;
 
     public List<WorkshopAppointment> findAppointments(Instant from, Instant to, String address, String car) {
         log.info("Request to find appointments from: {}, to: {}, address: {}, car: {}", from, to, address, car);
         List<WorkshopProperties.Workshop> workshops = filterWorkShops(address, car, null);
         List<WorkshopAppointment> workshopAppointments = new ArrayList<>();
         for (WorkshopProperties.Workshop workshop : workshops) {
-            try {
-                if (workshop.getType().equals(WorkshopTypeEnum.XML)) {
-                    workshopAppointments.addAll(
-                        xmlClient
-                            .findAppointments(workshop.getUrl(), from, to)
-                            .stream()
-                            .map(appointment -> new WorkshopAppointment(appointment, workshop))
-                            .toList()
-                    );
-                } else if (workshop.getType().equals(WorkshopTypeEnum.JSON)) {
-                    workshopAppointments.addAll(
-                        jsonClient
-                            .findAppointments(workshop.getUrl(), from)
-                            .stream()
-                            .filter(appointment ->
-                                Boolean.TRUE.equals(appointment.getAvailable()) && to.isAfter(appointment.getTime())
-                            )
-                            .map(appointment -> new WorkshopAppointment(appointment, workshop))
-                            .toList()
-                    );
-                } else {
-                    // Technically dont need this since enum protects us, but just in case for future
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown workshop type");
-                }
-            } catch (ResourceAccessException e) {
-                log.error("Failed to connect to {}", workshop.getUrl());
-            }
+            WorkShopClientStrategy strategy = getStrategy(workshop);
+            workshopAppointments.addAll(strategy.findAppointments(workshop, from, to));
         }
         workshopAppointments.sort(Comparator.comparing(WorkshopAppointment::getTime));
         return workshopAppointments;
@@ -72,20 +44,8 @@ public class WorkshopService {
         }
         WorkshopProperties.Workshop workshop = workshops.get(0);
         try {
-            if (workshop.getType().equals(WorkshopTypeEnum.XML)) {
-                return new WorkshopAppointment(
-                    xmlClient.bookAppointment(workshop.getUrl(), uuid, new TireChangeBookingRequest(contactInfo)),
-                    workshop
-                );
-            } else if (workshop.getType().equals(WorkshopTypeEnum.JSON)) {
-                return new WorkshopAppointment(
-                    jsonClient.bookAppointment(workshop.getUrl(), uuid, new TireChangeBookingRequest(contactInfo)),
-                    workshop
-                );
-            } else {
-                // Technically dont need this since enum protects us, but just in case for future
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown workshop type");
-            }
+            WorkShopClientStrategy strategy = getStrategy(workshop);
+            return strategy.bookAppointment(workshop, uuid, new TireChangeBookingRequest(contactInfo));
         } catch (HttpClientErrorException e) {
             if (
                 e.getStatusCode().equals(HttpStatus.UNPROCESSABLE_ENTITY) ||
@@ -97,12 +57,16 @@ public class WorkshopService {
                 );
             }
             throw e;
-        } catch (ResourceAccessException e) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Could not connect to " + name
-            );
         }
+    }
+
+    private WorkShopClientStrategy getStrategy(WorkshopProperties.Workshop workshop) {
+        WorkShopClientStrategy strategy = strategies.get(workshop.getType());
+        if (strategy == null) {
+            // Technically dont need this since enum protects us, but just in case for future
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown workshop type");
+        }
+        return strategy;
     }
 
     /**
